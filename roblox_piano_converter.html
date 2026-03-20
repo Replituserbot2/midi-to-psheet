@@ -54,7 +54,7 @@
   .out-ttl{font-size:.88rem;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--green)}
   .btn-row{display:flex;gap:8px;flex-wrap:wrap}
 
-  /* Play controls */
+
   .player{background:var(--panel);border:1px solid rgba(247,201,72,.2);border-radius:10px;padding:14px 16px;margin-bottom:10px}
   .player-top{display:flex;align-items:center;gap:12px;margin-bottom:10px;flex-wrap:wrap}
   .play-btn{padding:8px 22px;border:none;border-radius:7px;font-family:'Rajdhani',sans-serif;font-size:1rem;font-weight:700;letter-spacing:2px;cursor:pointer;transition:all .2s;text-transform:uppercase}
@@ -67,11 +67,11 @@
   .speed-wrap{display:flex;align-items:center;gap:8px;flex:1;min-width:160px}
   .speed-wrap input{flex:1;accent-color:var(--yellow)}
   .speed-val{font-family:'Share Tech Mono',monospace;font-size:.85rem;color:var(--yellow);min-width:36px;text-align:right}
-  /* Progress bar */
+
   .progress-bar-wrap{background:rgba(255,255,255,.06);border-radius:4px;height:6px;overflow:hidden;cursor:pointer}
   .progress-bar{height:100%;width:0%;background:linear-gradient(90deg,var(--green),var(--a2));border-radius:4px;transition:width .1s linear}
   .note-counter{font-family:'Share Tech Mono',monospace;font-size:.75rem;color:var(--muted);margin-top:6px;text-align:right}
-  /* Currently playing highlight */
+
   .playing-note{display:inline-block;background:rgba(78,204,163,.25);border-radius:3px;transition:background .1s}
 
   .box{background:#080d1a;border:1px solid rgba(78,204,163,.14);border-radius:10px;padding:15px;font-family:'Share Tech Mono',monospace;font-size:1rem;line-height:2.3;color:var(--a2);word-break:break-all;white-space:pre-wrap;max-height:300px;overflow-y:auto;letter-spacing:1.5px}
@@ -177,9 +177,7 @@
 </div>
 
 <script>
-// ══════════════════════════════════════════════════════════════
-// KEY MAP  (MIDI note → Roblox VP character)
-// ══════════════════════════════════════════════════════════════
+
 const NOTE_MAP = {
   48:'1',50:'2',52:'3',53:'4',55:'5',57:'6',59:'7',
   60:'8',62:'9',64:'0',65:'q',67:'w',69:'e',71:'r',
@@ -194,8 +192,7 @@ const NOTE_MAP = {
   97:'L',99:'Z',102:'C',104:'V',106:'B'
 };
 
-// REVERSE MAP: Roblox key char → frequency (Hz)
-// Build from NOTE_MAP → MIDI note → frequency
+
 const KEY_FREQ = {};
 for(const [midi, key] of Object.entries(NOTE_MAP)){
   const n = parseInt(midi);
@@ -209,9 +206,7 @@ function snapToRange(n){
   return n;
 }
 
-// ══════════════════════════════════════════════════════════════
-// MIDI PARSER
-// ══════════════════════════════════════════════════════════════
+
 function vlq(d,p){let v=0;while(p<d.length){const b=d[p++];v=(v<<7)|(b&0x7F);if(!(b&0x80))break;}return{v,p};}
 function parseMidi(buf){
   const d=new Uint8Array(buf);let p=0;
@@ -318,12 +313,9 @@ function convert(midi,selChs,quantDiv,spacesPerBeat,chordWinMs,maxChord){
     playEvents, msPerBeat, slotsPerSpace};
 }
 
-// ══════════════════════════════════════════════════════════════
-// SHEET PARSER  (parses the text sheet → playback events)
-// Used so Play works even if user pastes a custom sheet
-// ══════════════════════════════════════════════════════════════
+
 function parseSheet(sheetStr){
-  // Returns array of {keys:[], spacesBefore}
+
   const events=[];
   let i=0;
   let pendingSpaces=0;
@@ -331,11 +323,10 @@ function parseSheet(sheetStr){
     const c=sheetStr[i];
     if(c===' '){pendingSpaces++;i++;continue;}
     if(c==='['){
-      // find closing ]
       const end=sheetStr.indexOf(']',i);
       if(end===-1){i++;continue;}
       const inside=sheetStr.slice(i+1,end);
-      const keys=[...inside]; // each char is a key
+      const keys=[...inside]; 
       events.push({keys,spaces:pendingSpaces});
       pendingSpaces=0;
       i=end+1;
@@ -348,10 +339,7 @@ function parseSheet(sheetStr){
   return events;
 }
 
-// ══════════════════════════════════════════════════════════════
-// WEB AUDIO PIANO SYNTH
-// Piano-like tone: two oscillators + quick attack, natural decay
-// ══════════════════════════════════════════════════════════════
+
 let audioCtx=null;
 function getAudioCtx(){
   if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();
@@ -364,12 +352,12 @@ function playNote(freq, when, duration=0.6){
   const gain=ctx.createGain();
   gain.connect(ctx.destination);
 
-  // Main oscillator (sawtooth for brightness)
+
   const osc=ctx.createOscillator();
   osc.type='triangle';
   osc.frequency.setValueAtTime(freq,when);
 
-  // Slightly detuned second osc for richness
+
   const osc2=ctx.createOscillator();
   osc2.type='sine';
   osc2.frequency.setValueAtTime(freq*1.002,when);
@@ -379,7 +367,7 @@ function playNote(freq, when, duration=0.6){
   g1.connect(gain);g2.connect(gain);
   g1.gain.value=0.5;g2.gain.value=0.3;
 
-  // Envelope: quick attack, piano-like decay
+
   gain.gain.setValueAtTime(0,when);
   gain.gain.linearRampToValueAtTime(0.4,when+0.01);
   gain.gain.exponentialRampToValueAtTime(0.15,when+0.12);
@@ -390,10 +378,8 @@ function playNote(freq, when, duration=0.6){
   osc2.stop(when+duration+0.05);
 }
 
-// ══════════════════════════════════════════════════════════════
-// PLAYBACK ENGINE
-// ══════════════════════════════════════════════════════════════
-let playbackState=null; // {timeouts, total, current}
+
+let playbackState=null; 
 let currentSheet='';
 
 function stopPlayback(){
@@ -405,7 +391,6 @@ function stopPlayback(){
   document.getElementById('stopBtn').disabled=true;
   document.getElementById('progressBar').style.width='0%';
   document.getElementById('noteCounter').textContent='— / —';
-  // Remove highlight
   const box=document.getElementById('box');
   box.innerHTML=box.textContent;
 }
@@ -417,19 +402,17 @@ function startPlayback(sheetStr, bpm){
   if(!events.length)return;
 
   const speedMult=parseFloat(document.getElementById('speedSl').value);
-  // ms per space = (60000 / bpm) / spacesPerBeat
-  // We use a simpler approach: 1 space = 1/4 beat at the given BPM
-  // This gives reasonable timing regardless of conversion settings
+
   const msPerSpace=(60000/bpm)/2 / speedMult;
-  const noteDuration=(msPerSpace*3)/1000; // seconds
+  const noteDuration=(msPerSpace*3)/1000; 
 
   const timeouts=[];
-  let cursor=0; // ms from now
+  let cursor=0;
   const total=events.length;
   const startWallTime=performance.now();
   let totalMs=0;
 
-  // Calculate total duration
+
   events.forEach(ev=>{
     totalMs+=Math.max(ev.spaces,1)*msPerSpace;
   });
@@ -444,17 +427,16 @@ function startPlayback(sheetStr, bpm){
     const t=setTimeout(()=>{
       if(!playbackState)return;
       playbackState.current=idx+1;
-      // Update progress
       const pct=((idx+1)/total)*100;
       document.getElementById('progressBar').style.width=pct+'%';
       document.getElementById('noteCounter').textContent=(idx+1)+' / '+total;
-      // Play the keys
+
       const now=ctx.currentTime;
       ev.keys.forEach(k=>{
         const freq=KEY_FREQ[k];
         if(freq)playNote(freq,now,noteDuration);
       });
-      // Done?
+
       if(idx===events.length-1){
         setTimeout(()=>stopPlayback(),500);
       }
@@ -463,9 +445,7 @@ function startPlayback(sheetStr, bpm){
   });
 }
 
-// ══════════════════════════════════════════════════════════════
-// UI
-// ══════════════════════════════════════════════════════════════
+
 let midi=null, selChs=new Set(), lastBpm=120;
 const DRUM_CH=9;
 
