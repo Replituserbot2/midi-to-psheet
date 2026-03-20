@@ -54,7 +54,7 @@
   .out-ttl{font-size:.88rem;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--green)}
   .btn-row{display:flex;gap:8px;flex-wrap:wrap}
 
-
+  
   .player{background:var(--panel);border:1px solid rgba(247,201,72,.2);border-radius:10px;padding:14px 16px;margin-bottom:10px}
   .player-top{display:flex;align-items:center;gap:12px;margin-bottom:10px;flex-wrap:wrap}
   .play-btn{padding:8px 22px;border:none;border-radius:7px;font-family:'Rajdhani',sans-serif;font-size:1rem;font-weight:700;letter-spacing:2px;cursor:pointer;transition:all .2s;text-transform:uppercase}
@@ -67,11 +67,11 @@
   .speed-wrap{display:flex;align-items:center;gap:8px;flex:1;min-width:160px}
   .speed-wrap input{flex:1;accent-color:var(--yellow)}
   .speed-val{font-family:'Share Tech Mono',monospace;font-size:.85rem;color:var(--yellow);min-width:36px;text-align:right}
-
+  
   .progress-bar-wrap{background:rgba(255,255,255,.06);border-radius:4px;height:6px;overflow:hidden;cursor:pointer}
   .progress-bar{height:100%;width:0%;background:linear-gradient(90deg,var(--green),var(--a2));border-radius:4px;transition:width .1s linear}
   .note-counter{font-family:'Share Tech Mono',monospace;font-size:.75rem;color:var(--muted);margin-top:6px;text-align:right}
-
+  
   .playing-note{display:inline-block;background:rgba(78,204,163,.25);border-radius:3px;transition:background .1s}
 
   .box{background:#080d1a;border:1px solid rgba(78,204,163,.14);border-radius:10px;padding:15px;font-family:'Share Tech Mono',monospace;font-size:1rem;line-height:2.3;color:var(--a2);word-break:break-all;white-space:pre-wrap;max-height:300px;overflow-y:auto;letter-spacing:1.5px}
@@ -152,7 +152,7 @@
       </div>
     </div>
 
-    <!-- PLAYER -->
+    
     <div class="player" id="player">
       <div class="player-top">
         <button class="play-btn play" id="playBtn">▶ Play</button>
@@ -192,7 +192,6 @@ const NOTE_MAP = {
   97:'L',99:'Z',102:'C',104:'V',106:'B'
 };
 
-
 const KEY_FREQ = {};
 for(const [midi, key] of Object.entries(NOTE_MAP)){
   const n = parseInt(midi);
@@ -205,7 +204,6 @@ function snapToRange(n){
   while(n>MAX_MIDI)n-=12;
   return n;
 }
-
 
 function vlq(d,p){let v=0;while(p<d.length){const b=d[p++];v=(v<<7)|(b&0x7F);if(!(b&0x80))break;}return{v,p};}
 function parseMidi(buf){
@@ -285,7 +283,7 @@ function convert(midi,selChs,quantDiv,spacesPerBeat,chordWinMs,maxChord){
   moments.forEach(m=>{m.slot=Math.round(m.ms/msPerSlot);});
   let sheet='',totalNotes=0,totalChords=0;
   let prevSlot=moments[0].slot;
-  // Store structured events for playback
+  
   const playEvents=[];
   let charPos=0;
   for(let mi=0;mi<moments.length;mi++){
@@ -313,9 +311,8 @@ function convert(midi,selChs,quantDiv,spacesPerBeat,chordWinMs,maxChord){
     playEvents, msPerBeat, slotsPerSpace};
 }
 
-
 function parseSheet(sheetStr){
-
+  
   const events=[];
   let i=0;
   let pendingSpaces=0;
@@ -323,6 +320,7 @@ function parseSheet(sheetStr){
     const c=sheetStr[i];
     if(c===' '){pendingSpaces++;i++;continue;}
     if(c==='['){
+      
       const end=sheetStr.indexOf(']',i);
       if(end===-1){i++;continue;}
       const inside=sheetStr.slice(i+1,end);
@@ -339,7 +337,6 @@ function parseSheet(sheetStr){
   return events;
 }
 
-
 let audioCtx=null;
 function getAudioCtx(){
   if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();
@@ -352,12 +349,12 @@ function playNote(freq, when, duration=0.6){
   const gain=ctx.createGain();
   gain.connect(ctx.destination);
 
-
+  
   const osc=ctx.createOscillator();
   osc.type='triangle';
   osc.frequency.setValueAtTime(freq,when);
 
-
+  
   const osc2=ctx.createOscillator();
   osc2.type='sine';
   osc2.frequency.setValueAtTime(freq*1.002,when);
@@ -367,7 +364,7 @@ function playNote(freq, when, duration=0.6){
   g1.connect(gain);g2.connect(gain);
   g1.gain.value=0.5;g2.gain.value=0.3;
 
-
+  
   gain.gain.setValueAtTime(0,when);
   gain.gain.linearRampToValueAtTime(0.4,when+0.01);
   gain.gain.exponentialRampToValueAtTime(0.15,when+0.12);
@@ -377,7 +374,6 @@ function playNote(freq, when, duration=0.6){
   osc.stop(when+duration+0.05);
   osc2.stop(when+duration+0.05);
 }
-
 
 let playbackState=null; 
 let currentSheet='';
@@ -391,6 +387,7 @@ function stopPlayback(){
   document.getElementById('stopBtn').disabled=true;
   document.getElementById('progressBar').style.width='0%';
   document.getElementById('noteCounter').textContent='— / —';
+  
   const box=document.getElementById('box');
   box.innerHTML=box.textContent;
 }
@@ -402,17 +399,19 @@ function startPlayback(sheetStr, bpm){
   if(!events.length)return;
 
   const speedMult=parseFloat(document.getElementById('speedSl').value);
-
+  
+  
+  
   const msPerSpace=(60000/bpm)/2 / speedMult;
   const noteDuration=(msPerSpace*3)/1000; 
 
   const timeouts=[];
-  let cursor=0;
+  let cursor=0; 
   const total=events.length;
   const startWallTime=performance.now();
   let totalMs=0;
 
-
+  
   events.forEach(ev=>{
     totalMs+=Math.max(ev.spaces,1)*msPerSpace;
   });
@@ -427,16 +426,17 @@ function startPlayback(sheetStr, bpm){
     const t=setTimeout(()=>{
       if(!playbackState)return;
       playbackState.current=idx+1;
+      
       const pct=((idx+1)/total)*100;
       document.getElementById('progressBar').style.width=pct+'%';
       document.getElementById('noteCounter').textContent=(idx+1)+' / '+total;
-
+      
       const now=ctx.currentTime;
       ev.keys.forEach(k=>{
         const freq=KEY_FREQ[k];
         if(freq)playNote(freq,now,noteDuration);
       });
-
+      
       if(idx===events.length-1){
         setTimeout(()=>stopPlayback(),500);
       }
@@ -444,7 +444,6 @@ function startPlayback(sheetStr, bpm){
     timeouts.push(t);
   });
 }
-
 
 let midi=null, selChs=new Set(), lastBpm=120;
 const DRUM_CH=9;
