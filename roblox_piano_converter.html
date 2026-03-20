@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MIDI → Roblox Piano Sheet</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;600;700&display=swap');
+  :root{--bg:#1a1a2e;--panel:#16213e;--card:#0f3460;--accent:#e94560;--a2:#53d8fb;--green:#4ecca3;--text:#eaeaea;--muted:#8892a4;--yellow:#f7c948}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--text);font-family:'Rajdhani',sans-serif;min-height:100vh}
+  body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(83,216,251,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(83,216,251,.04) 1px,transparent 1px);background-size:40px 40px;pointer-events:none}
+  .wrap{position:relative;z-index:1;max-width:920px;margin:0 auto;padding:26px 18px 60px}
+  header{text-align:center;margin-bottom:28px}
+  h1{font-size:2.3rem;font-weight:700;letter-spacing:2px;text-transform:uppercase}
+  h1 .m{color:var(--accent)} h1 .r{color:var(--a2)}
+  .sub{font-size:.78rem;color:var(--muted);letter-spacing:3px;text-transform:uppercase;margin-top:3px}
+
+  .drop{border:2px dashed var(--a2);border-radius:12px;background:rgba(83,216,251,.04);padding:38px 20px;text-align:center;cursor:pointer;transition:all .2s;margin-bottom:16px;position:relative}
+  .drop:hover,.drop.over{border-color:var(--accent);background:rgba(233,69,96,.06);box-shadow:0 8px 32px rgba(233,69,96,.15)}
+  .drop input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+  .drop-icon{font-size:2.4rem;display:block;margin-bottom:7px}
+  .drop-txt{font-size:1.1rem;font-weight:600;color:var(--a2)}
+  .drop-hint{font-size:.76rem;color:var(--muted);margin-top:4px;font-family:'Share Tech Mono',monospace}
+
+  .fpill{display:none;align-items:center;gap:9px;background:rgba(83,216,251,.06);border:1px solid rgba(83,216,251,.2);border-radius:8px;padding:8px 13px;margin-bottom:13px;font-family:'Share Tech Mono',monospace;font-size:.78rem}
+  .fn{color:var(--a2);font-weight:bold}.fs{color:var(--muted)}
+  .warn{background:rgba(233,69,96,.08);border:1px solid rgba(233,69,96,.25);border-radius:8px;padding:8px 13px;font-size:.8rem;color:#f5a5b0;margin-bottom:12px;display:none}
+
+  .ch-sec{background:var(--panel);border:1px solid rgba(83,216,251,.12);border-radius:10px;padding:12px 15px;margin-bottom:12px;display:none}
+  .sec-lbl{font-size:.66rem;color:var(--muted);text-transform:uppercase;letter-spacing:2px;margin-bottom:8px}
+  .ch-list{display:flex;flex-wrap:wrap;gap:6px}
+  .ch-btn{padding:4px 10px;border-radius:5px;border:1px solid rgba(83,216,251,.2);background:var(--card);color:var(--text);font-family:'Rajdhani',sans-serif;font-size:.8rem;cursor:pointer;transition:all .15s;font-weight:600}
+  .ch-btn.on{border-color:var(--a2);background:rgba(83,216,251,.13);color:var(--a2)}
+
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:11px;margin-bottom:11px}
+  .card{background:var(--panel);border:1px solid rgba(83,216,251,.12);border-radius:10px;padding:12px 15px}
+  .card label{display:block;font-size:.66rem;color:var(--muted);text-transform:uppercase;letter-spacing:2px;margin-bottom:7px}
+  select{width:100%;background:var(--card);border:1px solid rgba(83,216,251,.18);border-radius:6px;color:var(--text);font-family:'Rajdhani',sans-serif;font-size:.9rem;padding:6px 9px;outline:none;cursor:pointer}
+  select:hover,select:focus{border-color:var(--a2)}
+  .rw{display:flex;align-items:center;gap:8px}
+  input[type=range]{flex:1;background:transparent;border:none;accent-color:var(--a2);cursor:pointer}
+  .rv{font-family:'Share Tech Mono',monospace;font-size:.88rem;color:var(--a2);min-width:38px;text-align:right}
+
+  .go{width:100%;padding:13px;background:linear-gradient(135deg,var(--accent),#c0392b);border:none;border-radius:10px;color:#fff;font-family:'Rajdhani',sans-serif;font-size:1.1rem;font-weight:700;letter-spacing:3px;text-transform:uppercase;cursor:pointer;transition:all .2s;margin-bottom:16px}
+  .go:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 8px 28px rgba(233,69,96,.4)}
+  .go:disabled{opacity:.32;cursor:not-allowed}
+
+  .st{background:var(--panel);border-left:3px solid var(--a2);border-radius:0 8px 8px 0;padding:8px 12px;font-family:'Share Tech Mono',monospace;font-size:.78rem;color:var(--a2);margin-bottom:12px;display:none}
+  .st.err{border-color:var(--accent);color:var(--accent)}
+
+  .out{display:none}
+  .out-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;flex-wrap:wrap;gap:8px}
+  .out-ttl{font-size:.88rem;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--green)}
+  .btn-row{display:flex;gap:8px;flex-wrap:wrap}
+
+  /* Play controls */
+  .player{background:var(--panel);border:1px solid rgba(247,201,72,.2);border-radius:10px;padding:14px 16px;margin-bottom:10px}
+  .player-top{display:flex;align-items:center;gap:12px;margin-bottom:10px;flex-wrap:wrap}
+  .play-btn{padding:8px 22px;border:none;border-radius:7px;font-family:'Rajdhani',sans-serif;font-size:1rem;font-weight:700;letter-spacing:2px;cursor:pointer;transition:all .2s;text-transform:uppercase}
+  .play-btn.play{background:var(--green);color:#0a1628;}
+  .play-btn.play:hover{opacity:.85;transform:translateY(-1px)}
+  .play-btn.stop{background:var(--accent);color:#fff;}
+  .play-btn.stop:hover{opacity:.85}
+  .play-btn:disabled{opacity:.3;cursor:not-allowed}
+  .player-label{font-size:.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:2px}
+  .speed-wrap{display:flex;align-items:center;gap:8px;flex:1;min-width:160px}
+  .speed-wrap input{flex:1;accent-color:var(--yellow)}
+  .speed-val{font-family:'Share Tech Mono',monospace;font-size:.85rem;color:var(--yellow);min-width:36px;text-align:right}
+  /* Progress bar */
+  .progress-bar-wrap{background:rgba(255,255,255,.06);border-radius:4px;height:6px;overflow:hidden;cursor:pointer}
+  .progress-bar{height:100%;width:0%;background:linear-gradient(90deg,var(--green),var(--a2));border-radius:4px;transition:width .1s linear}
+  .note-counter{font-family:'Share Tech Mono',monospace;font-size:.75rem;color:var(--muted);margin-top:6px;text-align:right}
+  /* Currently playing highlight */
+  .playing-note{display:inline-block;background:rgba(78,204,163,.25);border-radius:3px;transition:background .1s}
+
+  .box{background:#080d1a;border:1px solid rgba(78,204,163,.14);border-radius:10px;padding:15px;font-family:'Share Tech Mono',monospace;font-size:1rem;line-height:2.3;color:var(--a2);word-break:break-all;white-space:pre-wrap;max-height:300px;overflow-y:auto;letter-spacing:1.5px}
+  .box::-webkit-scrollbar{width:4px}
+  .box::-webkit-scrollbar-thumb{background:var(--a2);border-radius:3px}
+
+  .cpy{padding:6px 15px;background:var(--green);border:none;border-radius:6px;color:#0a1628;font-family:'Rajdhani',sans-serif;font-size:.8rem;font-weight:700;letter-spacing:2px;text-transform:uppercase;cursor:pointer;transition:all .2s}
+  .cpy:hover{opacity:.85;transform:translateY(-1px)}
+
+  .stats{display:flex;gap:8px;margin-top:11px;flex-wrap:wrap}
+  .stat{background:var(--panel);border:1px solid rgba(83,216,251,.1);border-radius:8px;padding:8px 11px;flex:1;min-width:78px;text-align:center}
+  .sv{font-size:1.35rem;font-weight:700;color:var(--a2);font-family:'Share Tech Mono',monospace;display:block}
+  .sl{font-size:.6rem;color:var(--muted);text-transform:uppercase;letter-spacing:2px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1><span class="m">MIDI</span> <span style="color:var(--muted)">→</span> <span class="r">Roblox</span> Piano</h1>
+    <p class="sub">Virtual Piano Sheet Converter · v5</p>
+  </header>
+
+  <div class="drop" id="drop">
+    <input type="file" id="fileIn" accept=".mid,.midi">
+    <span class="drop-icon">🎵</span>
+    <div class="drop-txt">Drop MIDI file here</div>
+    <div class="drop-hint">click to browse · .mid / .midi</div>
+  </div>
+
+  <div class="fpill" id="fpill"><span>🎼</span><span class="fn" id="fn">—</span><span class="fs" id="fs"></span></div>
+  <div class="warn" id="warn"></div>
+
+  <div class="ch-sec" id="chSec">
+    <div class="sec-lbl">Channels · drums auto-excluded · click to toggle</div>
+    <div class="ch-list" id="chList"></div>
+  </div>
+
+  <div class="grid">
+    <div class="card">
+      <label>Quantize grid</label>
+      <select id="quant">
+        <option value="4">Quarter (1/4)</option>
+        <option value="8" selected>Eighth (1/8) ← recommended</option>
+        <option value="16">Sixteenth (1/16)</option>
+      </select>
+    </div>
+    <div class="card">
+      <label>Spaces per beat</label>
+      <div class="rw">
+        <input type="range" id="spb" min="1" max="6" value="2">
+        <span class="rv" id="spbV">2</span>
+      </div>
+    </div>
+    <div class="card">
+      <label>Max keys per chord</label>
+      <div class="rw">
+        <input type="range" id="maxC" min="1" max="5" value="3">
+        <span class="rv" id="mcV">3</span>
+      </div>
+    </div>
+    <div class="card">
+      <label>Chord window (ms)</label>
+      <div class="rw">
+        <input type="range" id="cwin" min="10" max="80" value="30">
+        <span class="rv" id="cwinV">30ms</span>
+      </div>
+    </div>
+  </div>
+
+  <button class="go" id="go" disabled>▶ Convert to Sheet</button>
+  <div class="st" id="st"></div>
+
+  <div class="out" id="out">
+    <div class="out-hdr">
+      <span class="out-ttl">📋 Roblox Piano Sheet</span>
+      <div class="btn-row">
+        <button class="cpy" id="cpy">Copy Sheet</button>
+      </div>
+    </div>
+
+    <!-- PLAYER -->
+    <div class="player" id="player">
+      <div class="player-top">
+        <button class="play-btn play" id="playBtn">▶ Play</button>
+        <button class="play-btn stop" id="stopBtn" disabled>■ Stop</button>
+        <div style="display:flex;flex-direction:column;gap:4px;flex:1;min-width:160px">
+          <div class="player-label">Playback speed</div>
+          <div class="speed-wrap">
+            <input type="range" id="speedSl" min="0.25" max="2" step="0.05" value="1">
+            <span class="speed-val" id="speedV">1.0×</span>
+          </div>
+        </div>
+      </div>
+      <div class="progress-bar-wrap" id="progressWrap">
+        <div class="progress-bar" id="progressBar"></div>
+      </div>
+      <div class="note-counter" id="noteCounter">— / —</div>
+    </div>
+
+    <div class="box" id="box"></div>
+    <div class="stats" id="stats"></div>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════════════════════
+// KEY MAP  (MIDI note → Roblox VP character)
+// ══════════════════════════════════════════════════════════════
+const NOTE_MAP = {
+  48:'1',50:'2',52:'3',53:'4',55:'5',57:'6',59:'7',
+  60:'8',62:'9',64:'0',65:'q',67:'w',69:'e',71:'r',
+  72:'t',74:'y',76:'u',77:'i',79:'o',81:'p',83:'a',
+  84:'s',86:'d',88:'f',89:'g',91:'h',93:'j',95:'k',
+  96:'l',98:'z',100:'x',101:'c',103:'v',105:'b',107:'n',108:'m',
+  49:'!',51:'@',54:'$',56:'%',58:'^',
+  61:'*',63:'(',
+  66:'Q',68:'W',70:'E',
+  73:'T',75:'Y',78:'I',80:'O',82:'P',
+  85:'S',87:'D',90:'G',92:'H',94:'J',
+  97:'L',99:'Z',102:'C',104:'V',106:'B'
+};
+
+// REVERSE MAP: Roblox key char → frequency (Hz)
+// Build from NOTE_MAP → MIDI note → frequency
+const KEY_FREQ = {};
+for(const [midi, key] of Object.entries(NOTE_MAP)){
+  const n = parseInt(midi);
+  KEY_FREQ[key] = 440 * Math.pow(2, (n - 69) / 12);
+}
+const MIN_MIDI=48, MAX_MIDI=108;
+
+function snapToRange(n){
+  while(n<MIN_MIDI)n+=12;
+  while(n>MAX_MIDI)n-=12;
+  return n;
+}
+
+// ══════════════════════════════════════════════════════════════
+// MIDI PARSER
+// ══════════════════════════════════════════════════════════════
+function vlq(d,p){let v=0;while(p<d.length){const b=d[p++];v=(v<<7)|(b&0x7F);if(!(b&0x80))break;}return{v,p};}
+function parseMidi(buf){
+  const d=new Uint8Array(buf);let p=0;
+  const u16=()=>{const v=(d[p]<<8)|d[p+1];p+=2;return v;};
+  const u32=()=>{const v=(d[p]<<24)|(d[p+1]<<16)|(d[p+2]<<8)|d[p+3];p+=4;return v>>>0;};
+  const tag=()=>String.fromCharCode(d[p++],d[p++],d[p++],d[p++]);
+  if(tag()!=='MThd') throw new Error('Not a valid MIDI file');
+  u32();
+  const format=u16(),numTracks=u16(),division=u16();
+  const tracks=[];
+  for(let t=0;t<numTracks;t++){
+    if(p>=d.length)break;
+    const tk=tag(),cl=u32(),end=p+cl;
+    if(tk!=='MTrk'){p=end;continue;}
+    const ev=[];let tick=0,ls=0;
+    while(p<end){
+      const r=vlq(d,p);p=r.p;tick+=r.v;
+      let st=d[p];if(st&0x80){ls=st;p++;}else st=ls;
+      const tp=st&0xF0;
+      if(tp===0x90||tp===0x80){const note=d[p++],vel=d[p++];ev.push({tick,type:(tp===0x90&&vel>0)?'on':'off',note,vel,ch:st&0x0F});}
+      else if(tp===0xA0||tp===0xB0||tp===0xE0){p+=2;}
+      else if(tp===0xC0||tp===0xD0){p++;}
+      else if(st===0xFF){const mt=d[p++];const r2=vlq(d,p);p=r2.p;if(mt===0x51&&r2.v===3){ev.push({tick,type:'tempo',tempo:(d[p]<<16)|(d[p+1]<<8)|d[p+2]});}p+=r2.v;}
+      else if(st===0xF0||st===0xF7){const r2=vlq(d,p);p=r2.p;p+=r2.v;}
+      else p++;
+    }
+    p=end;tracks.push({ev});
+  }
+  return{format,numTracks,division,tracks};
+}
+function buildTempoMap(tracks){
+  const arr=[];
+  tracks.forEach(t=>t.ev.filter(e=>e.type==='tempo').forEach(e=>arr.push({...e})));
+  arr.sort((a,b)=>a.tick-b.tick);
+  if(!arr.length||arr[0].tick>0)arr.unshift({tick:0,tempo:500000});
+  return arr;
+}
+function tickToMs(tick,div,tm){
+  let ms=0,last=tm[0];
+  for(let i=1;i<tm.length;i++){if(tm[i].tick>=tick)break;ms+=(tm[i].tick-last.tick)*(last.tempo/(div*1000));last=tm[i];}
+  return ms+(tick-last.tick)*(last.tempo/(div*1000));
+}
+function voiceChord(notes,maxKeys){
+  const s=[...new Set(notes)].sort((a,b)=>a-b);
+  if(s.length<=maxKeys)return s;
+  const res=[s[0]];
+  if(maxKeys>=2)res.push(s[s.length-1]);
+  const inner=s.slice(1,s.length-1);
+  const needed=maxKeys-res.length;
+  if(needed>0&&inner.length>0){
+    const step=inner.length/(needed+1);
+    for(let i=1;i<=needed;i++)res.push(inner[Math.min(Math.round(i*step)-1,inner.length-1)]);
+  }
+  return[...new Set(res)].sort((a,b)=>a-b);
+}
+function convert(midi,selChs,quantDiv,spacesPerBeat,chordWinMs,maxChord){
+  const{division,tracks}=midi;
+  const tm=buildTempoMap(tracks);
+  const msPerBeat=tm[0].tempo/1000;
+  let evs=[];
+  tracks.forEach(tr=>tr.ev.forEach(e=>{
+    if(e.type==='on'&&selChs.has(e.ch))evs.push({note:e.note,ms:tickToMs(e.tick,division,tm)});
+  }));
+  if(!evs.length)return null;
+  evs.sort((a,b)=>a.ms-b.ms);
+  evs.forEach(e=>{e.note=snapToRange(e.note);});
+  const moments=[];
+  let i=0;
+  while(i<evs.length){
+    const base=evs[i].ms;const grp=[];
+    while(i<evs.length&&evs[i].ms-base<=chordWinMs){grp.push(evs[i]);i++;}
+    moments.push({ms:base,notes:grp.map(e=>e.note)});
+  }
+  const msPerSlot=msPerBeat/(quantDiv/4);
+  const slotsPerSpace=(quantDiv/4)/spacesPerBeat;
+  moments.forEach(m=>{m.slot=Math.round(m.ms/msPerSlot);});
+  let sheet='',totalNotes=0,totalChords=0;
+  let prevSlot=moments[0].slot;
+  // Store structured events for playback
+  const playEvents=[];
+  let charPos=0;
+  for(let mi=0;mi<moments.length;mi++){
+    const mom=moments[mi];
+    if(mi>0){
+      const diff=mom.slot-prevSlot;
+      const sp=Math.max(1,Math.round(diff/slotsPerSpace));
+      const spaces=Math.min(sp,6);
+      sheet+=' '.repeat(spaces);
+      charPos+=spaces;
+    }
+    prevSlot=mom.slot;
+    const voiced=voiceChord(mom.notes,maxChord);
+    const keys=[...new Set(voiced.map(n=>NOTE_MAP[n]).filter(Boolean))];
+    if(!keys.length)continue;
+    totalNotes+=keys.length;
+    const token=keys.length===1?keys[0]:'['+keys.join('')+']';
+    playEvents.push({charPos, token, keys, slot:mom.slot});
+    sheet+=token;
+    charPos+=token.length;
+    if(keys.length>1)totalChords++;
+  }
+  return{sheet:sheet.trim(),notes:totalNotes,chords:totalChords,
+    moments:moments.length,tempo:Math.round(60000/msPerBeat),
+    playEvents, msPerBeat, slotsPerSpace};
+}
+
+// ══════════════════════════════════════════════════════════════
+// SHEET PARSER  (parses the text sheet → playback events)
+// Used so Play works even if user pastes a custom sheet
+// ══════════════════════════════════════════════════════════════
+function parseSheet(sheetStr){
+  // Returns array of {keys:[], spacesBefore}
+  const events=[];
+  let i=0;
+  let pendingSpaces=0;
+  while(i<sheetStr.length){
+    const c=sheetStr[i];
+    if(c===' '){pendingSpaces++;i++;continue;}
+    if(c==='['){
+      // find closing ]
+      const end=sheetStr.indexOf(']',i);
+      if(end===-1){i++;continue;}
+      const inside=sheetStr.slice(i+1,end);
+      const keys=[...inside]; // each char is a key
+      events.push({keys,spaces:pendingSpaces});
+      pendingSpaces=0;
+      i=end+1;
+    } else {
+      events.push({keys:[c],spaces:pendingSpaces});
+      pendingSpaces=0;
+      i++;
+    }
+  }
+  return events;
+}
+
+// ══════════════════════════════════════════════════════════════
+// WEB AUDIO PIANO SYNTH
+// Piano-like tone: two oscillators + quick attack, natural decay
+// ══════════════════════════════════════════════════════════════
+let audioCtx=null;
+function getAudioCtx(){
+  if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();
+  if(audioCtx.state==='suspended')audioCtx.resume();
+  return audioCtx;
+}
+
+function playNote(freq, when, duration=0.6){
+  const ctx=getAudioCtx();
+  const gain=ctx.createGain();
+  gain.connect(ctx.destination);
+
+  // Main oscillator (sawtooth for brightness)
+  const osc=ctx.createOscillator();
+  osc.type='triangle';
+  osc.frequency.setValueAtTime(freq,when);
+
+  // Slightly detuned second osc for richness
+  const osc2=ctx.createOscillator();
+  osc2.type='sine';
+  osc2.frequency.setValueAtTime(freq*1.002,when);
+
+  const g1=ctx.createGain(),g2=ctx.createGain();
+  osc.connect(g1);osc2.connect(g2);
+  g1.connect(gain);g2.connect(gain);
+  g1.gain.value=0.5;g2.gain.value=0.3;
+
+  // Envelope: quick attack, piano-like decay
+  gain.gain.setValueAtTime(0,when);
+  gain.gain.linearRampToValueAtTime(0.4,when+0.01);
+  gain.gain.exponentialRampToValueAtTime(0.15,when+0.12);
+  gain.gain.exponentialRampToValueAtTime(0.001,when+Math.max(duration,0.2));
+
+  osc.start(when);osc2.start(when);
+  osc.stop(when+duration+0.05);
+  osc2.stop(when+duration+0.05);
+}
+
+// ══════════════════════════════════════════════════════════════
+// PLAYBACK ENGINE
+// ══════════════════════════════════════════════════════════════
+let playbackState=null; // {timeouts, total, current}
+let currentSheet='';
+
+function stopPlayback(){
+  if(playbackState){
+    playbackState.timeouts.forEach(t=>clearTimeout(t));
+    playbackState=null;
+  }
+  document.getElementById('playBtn').disabled=false;
+  document.getElementById('stopBtn').disabled=true;
+  document.getElementById('progressBar').style.width='0%';
+  document.getElementById('noteCounter').textContent='— / —';
+  // Remove highlight
+  const box=document.getElementById('box');
+  box.innerHTML=box.textContent;
+}
+
+function startPlayback(sheetStr, bpm){
+  stopPlayback();
+  const ctx=getAudioCtx();
+  const events=parseSheet(sheetStr);
+  if(!events.length)return;
+
+  const speedMult=parseFloat(document.getElementById('speedSl').value);
+  // ms per space = (60000 / bpm) / spacesPerBeat
+  // We use a simpler approach: 1 space = 1/4 beat at the given BPM
+  // This gives reasonable timing regardless of conversion settings
+  const msPerSpace=(60000/bpm)/2 / speedMult;
+  const noteDuration=(msPerSpace*3)/1000; // seconds
+
+  const timeouts=[];
+  let cursor=0; // ms from now
+  const total=events.length;
+  const startWallTime=performance.now();
+  let totalMs=0;
+
+  // Calculate total duration
+  events.forEach(ev=>{
+    totalMs+=Math.max(ev.spaces,1)*msPerSpace;
+  });
+
+  document.getElementById('playBtn').disabled=true;
+  document.getElementById('stopBtn').disabled=false;
+
+  playbackState={timeouts, total, current:0};
+
+  events.forEach((ev,idx)=>{
+    cursor+=Math.max(ev.spaces,1)*msPerSpace;
+    const t=setTimeout(()=>{
+      if(!playbackState)return;
+      playbackState.current=idx+1;
+      // Update progress
+      const pct=((idx+1)/total)*100;
+      document.getElementById('progressBar').style.width=pct+'%';
+      document.getElementById('noteCounter').textContent=(idx+1)+' / '+total;
+      // Play the keys
+      const now=ctx.currentTime;
+      ev.keys.forEach(k=>{
+        const freq=KEY_FREQ[k];
+        if(freq)playNote(freq,now,noteDuration);
+      });
+      // Done?
+      if(idx===events.length-1){
+        setTimeout(()=>stopPlayback(),500);
+      }
+    }, cursor);
+    timeouts.push(t);
+  });
+}
+
+// ══════════════════════════════════════════════════════════════
+// UI
+// ══════════════════════════════════════════════════════════════
+let midi=null, selChs=new Set(), lastBpm=120;
+const DRUM_CH=9;
+
+const drop=document.getElementById('drop');
+const fileIn=document.getElementById('fileIn');
+const goBtn=document.getElementById('go');
+const stEl=document.getElementById('st');
+const outEl=document.getElementById('out');
+const boxEl=document.getElementById('box');
+const cpyBtn=document.getElementById('cpy');
+const chSec=document.getElementById('chSec');
+const chList=document.getElementById('chList');
+const warnEl=document.getElementById('warn');
+const spbSl=document.getElementById('spb');
+const mcSl=document.getElementById('maxC');
+const cwinSl=document.getElementById('cwin');
+const speedSl=document.getElementById('speedSl');
+const playBtn=document.getElementById('playBtn');
+const stopBtn=document.getElementById('stopBtn');
+
+spbSl.oninput=()=>document.getElementById('spbV').textContent=spbSl.value;
+mcSl.oninput=()=>document.getElementById('mcV').textContent=mcSl.value;
+cwinSl.oninput=()=>document.getElementById('cwinV').textContent=cwinSl.value+'ms';
+speedSl.oninput=()=>{
+  document.getElementById('speedV').textContent=parseFloat(speedSl.value).toFixed(2)+'×';
+};
+
+function setStatus(msg,err){stEl.style.display='block';stEl.textContent=msg;stEl.className='st'+(err?' err':'');}
+function hsize(b){return b<1024?b+' B':(b/1024).toFixed(1)+' KB';}
+const CHNAMES=Array.from({length:16},(_,i)=>i===9?'Ch 10 🥁':'Ch '+(i+1));
+
+function buildChPicker(m){
+  const cnts={};
+  m.tracks.forEach(tr=>tr.ev.filter(e=>e.type==='on').forEach(e=>{cnts[e.ch]=(cnts[e.ch]||0)+1;}));
+  const chs=Object.keys(cnts).map(Number).sort((a,b)=>a-b);
+  selChs=new Set(chs.filter(c=>c!==DRUM_CH));
+  chList.innerHTML='';
+  chs.forEach(c=>{
+    const b=document.createElement('button');
+    b.className='ch-btn'+(selChs.has(c)?' on':'');
+    b.textContent=CHNAMES[c]+' ('+cnts[c]+')';
+    b.onclick=()=>{
+      if(selChs.has(c)){selChs.delete(c);b.classList.remove('on');}
+      else{selChs.add(c);b.classList.add('on');}
+    };
+    chList.appendChild(b);
+  });
+  chSec.style.display='block';
+  if(cnts[DRUM_CH]){warnEl.style.display='block';warnEl.textContent='⚠ Ch 10 (Drums) auto-excluded.';}
+}
+
+function loadFile(file){
+  if(!file)return;
+  if(!file.name.match(/\.mid(i)?$/i)){setStatus('Upload a .mid or .midi file',true);return;}
+  document.getElementById('fn').textContent=file.name;
+  document.getElementById('fs').textContent=hsize(file.size);
+  document.getElementById('fpill').style.display='flex';
+  warnEl.style.display='none';outEl.style.display='none';
+  stopPlayback();
+  const r=new FileReader();
+  r.onload=e=>{
+    try{
+      midi=parseMidi(e.target.result);
+      buildChPicker(midi);
+      const tEvs=midi.tracks.flatMap(t=>t.ev.filter(e=>e.type==='tempo'));
+      const bpm=tEvs.length?Math.round(60000000/tEvs[0].tempo):120;
+      lastBpm=bpm;
+      setStatus('✓ Loaded · Format '+midi.format+' · '+midi.numTracks+' track(s) · ~'+bpm+' BPM');
+      goBtn.disabled=false;
+    }catch(err){setStatus('Parse error: '+err.message,true);midi=null;goBtn.disabled=true;}
+  };
+  r.readAsArrayBuffer(file);
+}
+
+fileIn.addEventListener('change',e=>loadFile(e.target.files[0]));
+drop.addEventListener('dragover',e=>{e.preventDefault();drop.classList.add('over');});
+drop.addEventListener('dragleave',()=>drop.classList.remove('over'));
+drop.addEventListener('drop',e=>{e.preventDefault();drop.classList.remove('over');loadFile(e.dataTransfer.files[0]);});
+
+goBtn.addEventListener('click',()=>{
+  if(!midi)return;
+  if(!selChs.size){setStatus('Select at least one channel.',true);return;}
+  stopPlayback();
+  try{
+    const q=parseInt(document.getElementById('quant').value);
+    const spb=parseInt(spbSl.value);
+    const mc=parseInt(mcSl.value);
+    const cw=parseInt(cwinSl.value);
+    const res=convert(midi,selChs,q,spb,cw,mc);
+    if(!res){setStatus('No notes found.',true);return;}
+    currentSheet=res.sheet;
+    lastBpm=res.tempo;
+    boxEl.textContent=res.sheet;
+    outEl.style.display='block';
+    setStatus('✓ '+res.notes+' keys · '+res.chords+' chords · '+res.tempo+' BPM');
+    document.getElementById('stats').innerHTML=
+      '<div class="stat"><span class="sv">'+res.notes+'</span><span class="sl">Keys</span></div>'+
+      '<div class="stat"><span class="sv">'+res.chords+'</span><span class="sl">Chords</span></div>'+
+      '<div class="stat"><span class="sv">'+res.moments+'</span><span class="sl">Moments</span></div>'+
+      '<div class="stat"><span class="sv">'+res.tempo+'</span><span class="sl">BPM</span></div>';
+    outEl.scrollIntoView({behavior:'smooth'});
+  }catch(err){setStatus('Error: '+err.message,true);}
+});
+
+playBtn.addEventListener('click',()=>{
+  const sheet=boxEl.textContent.trim();
+  if(!sheet)return;
+  currentSheet=sheet;
+  startPlayback(sheet, lastBpm||120);
+});
+
+stopBtn.addEventListener('click',stopPlayback);
+
+cpyBtn.addEventListener('click',()=>{
+  navigator.clipboard.writeText(boxEl.textContent).then(()=>{
+    cpyBtn.textContent='✓ Copied!';setTimeout(()=>cpyBtn.textContent='Copy Sheet',1800);
+  });
+});
+</script>
+</body>
+</html>
